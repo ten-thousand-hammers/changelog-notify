@@ -121,8 +121,8 @@ async function run() {
   const statusLabel = env(`LABEL_${upper}`) || DEFAULT_LABELS[status] || status;
 
   // Resolve message refs: explicit input wins, then state-file, then none.
-  let slackTs = env("SLACK_TS");
-  let discordMessageId = env("DISCORD_MESSAGE_ID");
+  let slackTs = env("SLACK_TS").trim();
+  let discordMessageId = env("DISCORD_MESSAGE_ID").trim();
   const stateFile = env("STATE_FILE");
   if (stateFile && fs.existsSync(stateFile)) {
     const raw = fs.readFileSync(stateFile, "utf8").trim();
@@ -139,10 +139,12 @@ async function run() {
     if (!discordMessageId) discordMessageId = state.discordMessageId || "";
   }
 
-  const slackToken = env("SLACK_BOT_TOKEN");
-  const slackChannel = env("SLACK_CHANNEL");
-  const slackWebhook = env("SLACK_WEBHOOK");
-  const discordWebhook = env("DISCORD_WEBHOOK");
+  // Trim to tolerate stray whitespace/newlines in secrets — a common cause of
+  // Slack "invalid_auth" when the token otherwise looks correct.
+  const slackToken = env("SLACK_BOT_TOKEN").trim();
+  const slackChannel = env("SLACK_CHANNEL").trim();
+  const slackWebhook = env("SLACK_WEBHOOK").trim();
+  const discordWebhook = env("DISCORD_WEBHOOK").trim();
 
   const useSlackBot = Boolean(slackToken && slackChannel);
   const useSlackWebhook = Boolean(!useSlackBot && slackWebhook);

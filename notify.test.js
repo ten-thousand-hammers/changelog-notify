@@ -94,6 +94,19 @@ test("slack: edits with chat.update when a ts is provided", async () => {
   assert.strictEqual(res.slackTs, "999.000");
 });
 
+test("slack: trims whitespace/newlines from token and channel", async () => {
+  setEnv({
+    STATUS: "deploying",
+    VERSION: "1.0.0",
+    SLACK_BOT_TOKEN: "xoxb-test\n",
+    SLACK_CHANNEL: " C1 ",
+  });
+  const calls = mockFetch(() => ({ json: { ok: true, ts: "1.1" } }));
+  await run();
+  assert.strictEqual(calls[0].headers.Authorization, "Bearer xoxb-test");
+  assert.strictEqual(calls[0].body.channel, "C1");
+});
+
 test("slack: {ok:false} surfaces an error and does not deliver", async () => {
   setEnv({ STATUS: "deploying", VERSION: "1.0.0", SLACK_BOT_TOKEN: "xoxb", SLACK_CHANNEL: "C1" });
   mockFetch(() => ({ status: 200, json: { ok: false, error: "channel_not_found" } }));

@@ -141,10 +141,17 @@ async function run() {
 
   // Trim to tolerate stray whitespace/newlines in secrets — a common cause of
   // Slack "invalid_auth" when the token otherwise looks correct.
-  const slackToken = env("SLACK_BOT_TOKEN").trim();
+  let slackToken = env("SLACK_BOT_TOKEN").trim();
   const slackChannel = env("SLACK_CHANNEL").trim();
-  const slackWebhook = env("SLACK_WEBHOOK").trim();
+  let slackWebhook = env("SLACK_WEBHOOK").trim();
   const discordWebhook = env("DISCORD_WEBHOOK").trim();
+
+  // Tolerate a Slack incoming-webhook URL placed in the bot-token slot: bot
+  // tokens start with "xoxb-", so an https:// value is unambiguously a webhook.
+  if (slackToken.startsWith("https://")) {
+    if (!slackWebhook) slackWebhook = slackToken;
+    slackToken = "";
+  }
 
   const useSlackBot = Boolean(slackToken && slackChannel);
   const useSlackWebhook = Boolean(!useSlackBot && slackWebhook);
@@ -186,19 +193,14 @@ async function run() {
       errors.push(e);
     }
   } else if (useSlackWebhook) {
-    // Incoming webhooks cannot edit; fire once on the initial post to avoid dupes.
-    if (status === "deploying") {
-      try {
-        await postSlackWebhook({ url: slackWebhook, fmt });
-        slackDelivered = true;
-      } catch (e) {
-        errors.push(e);
-      }
-    } else {
-      console.log(
-        "changelog-notify: Slack webhook cannot edit an existing message; " +
-          "skipping status '" + status + "'. Use a bot token for the full lifecycle."
-      );
+    // Incoming webhooks can't edit a prior message, so each status posts as its
+    // own message (e.g. "deploying" then "released"/"failed"). Use a bot token
+    // if you want a single message edited in place across the lifecycle.
+    try {
+      await postSlackWebhook({ url: slackWebhook, fmt });
+      slackDelivered = true;
+    } catch (e) {
+      errors.push(e);
     }
   }
 

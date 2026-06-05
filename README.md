@@ -11,9 +11,10 @@ Part of the changelog actions suite:
 ## How it works
 
 - **Slack** uses the Web API (`chat.postMessage` / `chat.update`) with a **bot
-  token**, so it can edit a message in place across the lifecycle. An incoming
-  **webhook** is supported as a one-shot fallback (webhooks can't edit, so it
-  only fires on `deploying`).
+  token**, so it can edit one message in place across the lifecycle. An incoming
+  **webhook** also works — webhooks can't edit, so each status posts as its own
+  message (`deploying`, then `released`/`failed`). A webhook URL passed as
+  `slack-bot-token` is auto-detected and used as a webhook.
 - **Discord** uses a **webhook** — it creates with `?wait=true` (which returns
   the message id) and edits via `PATCH .../messages/{id}`. No bot required.
 - The changelog markdown is rendered to **Slack Block Kit** and a **Discord
@@ -90,7 +91,7 @@ pattern; legacy bare-`ts` files are still understood).
 | `app-name` | repo name | Display name. |
 | `slack-bot-token` | `""` | Slack bot token — enables the Slack lifecycle. |
 | `slack-channel` | `""` | Slack channel ID (required with the bot token). |
-| `slack-webhook` | `""` | Slack incoming webhook (one-shot fallback). |
+| `slack-webhook` | `""` | Slack incoming webhook URL. Posts one message per status (webhooks can't edit). |
 | `slack-ts` | `""` | Existing Slack `ts` to edit. |
 | `discord-webhook` | `""` | Discord webhook URL — enables Discord. |
 | `discord-message-id` | `""` | Existing Discord message id to edit. |

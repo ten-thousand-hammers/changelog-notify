@@ -192,20 +192,30 @@ test("no providers configured: no-op, no fetch calls", async () => {
   assert.deepStrictEqual(res.errors, []);
 });
 
-test("slack webhook: posts on deploying", async () => {
-  setEnv({ STATUS: "deploying", VERSION: "1.0.0", SLACK_WEBHOOK: "https://hooks.slack.com/x" });
+test("slack webhook: posts on every status (cannot edit in place)", async () => {
+  for (const status of ["deploying", "released", "failed"]) {
+    for (const k of ENV_KEYS) delete process.env[k];
+    setEnv({ STATUS: status, VERSION: "1.0.0", SLACK_WEBHOOK: "https://hooks.slack.com/x" });
+    const calls = mockFetch(() => ({ status: 200, json: {} }));
+    const res = await run();
+    assert.strictEqual(calls.length, 1, `expected one post for status=${status}`);
+    assert.strictEqual(res.slackDelivered, true);
+  }
+});
+
+test("slack: a webhook URL in the bot-token slot is used as a webhook", async () => {
+  setEnv({
+    STATUS: "released",
+    VERSION: "1.0.0",
+    SLACK_BOT_TOKEN: "https://hooks.slack.com/services/T/B/xyz",
+    SLACK_CHANNEL: "C1",
+  });
   const calls = mockFetch(() => ({ status: 200, json: {} }));
   const res = await run();
   assert.strictEqual(calls.length, 1);
+  assert.strictEqual(calls[0].url, "https://hooks.slack.com/services/T/B/xyz");
+  assert.ok(!calls[0].url.includes("slack.com/api/"));
   assert.strictEqual(res.slackDelivered, true);
-});
-
-test("slack webhook: skips non-deploying statuses (cannot edit)", async () => {
-  setEnv({ STATUS: "released", VERSION: "1.0.0", SLACK_WEBHOOK: "https://hooks.slack.com/x" });
-  const calls = mockFetch(() => ({ status: 200, json: {} }));
-  const res = await run();
-  assert.strictEqual(calls.length, 0);
-  assert.strictEqual(res.slackDelivered, false);
 });
 
 test("state-file: writes refs on create, then edits on a later run", async () => {

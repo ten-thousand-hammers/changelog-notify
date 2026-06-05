@@ -1,0 +1,123 @@
+name: Changelog Notify
+description: >-
+  Post a release/deploy notification to Slack and/or Discord, then edit the same
+  message as the deploy progresses (deploying → released / failed). Providers are
+  auto-detected from the configuration you pass.
+
+inputs:
+  status:
+    description: "deploying | released | failed"
+    required: true
+  version:
+    description: Version/tag being released, e.g. 2026.6.4+1.
+    required: true
+  changes:
+    description: Release notes body (raw changelog markdown). Optional.
+    required: false
+    default: ""
+  app-name:
+    description: Display name for the app.
+    required: false
+    default: ${{ github.event.repository.name }}
+  slack-bot-token:
+    description: Slack bot token (xoxb-...). Enables the full lifecycle (post + edit).
+    required: false
+    default: ""
+  slack-channel:
+    description: Slack channel ID (required with slack-bot-token).
+    required: false
+    default: ""
+  slack-webhook:
+    description: Slack incoming webhook URL. One-shot only (cannot edit); used when no bot token is set.
+    required: false
+    default: ""
+  slack-ts:
+    description: Existing Slack message ts to edit. Leave empty to post a new message.
+    required: false
+    default: ""
+  discord-webhook:
+    description: Discord webhook URL. Enables Discord (post + edit, no bot needed).
+    required: false
+    default: ""
+  discord-message-id:
+    description: Existing Discord message id to edit. Leave empty to post a new message.
+    required: false
+    default: ""
+  state-file:
+    description: Optional path to persist message refs across separate workflow runs (JSON).
+    required: false
+    default: ""
+  color-deploying:
+    description: Hex color for the "deploying" status.
+    required: false
+    default: dbab09
+  color-released:
+    description: Hex color for the "released" status.
+    required: false
+    default: 28a745
+  color-failed:
+    description: Hex color for the "failed" status.
+    required: false
+    default: FF5733
+  status-label-deploying:
+    description: Status label text for "deploying".
+    required: false
+    default: Deploying
+  status-label-released:
+    description: Status label text for "released".
+    required: false
+    default: Released
+  status-label-failed:
+    description: Status label text for "failed".
+    required: false
+    default: Deploy failed
+  fail-on-error:
+    description: Fail the step if a notification could not be delivered.
+    required: false
+    default: "true"
+
+outputs:
+  slack-ts:
+    description: Slack message ts (pass into a later step's slack-ts to edit it).
+    value: ${{ steps.notify.outputs.slack-ts }}
+  discord-message-id:
+    description: Discord message id (pass into a later step's discord-message-id to edit it).
+    value: ${{ steps.notify.outputs.discord-message-id }}
+  slack-delivered:
+    description: Whether the Slack notification was delivered.
+    value: ${{ steps.notify.outputs.slack-delivered }}
+  discord-delivered:
+    description: Whether the Discord notification was delivered.
+    value: ${{ steps.notify.outputs.discord-delivered }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Send notification
+      id: notify
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/notify.js"
+      env:
+        STATUS: ${{ inputs.status }}
+        VERSION: ${{ inputs.version }}
+        CHANGES: ${{ inputs.changes }}
+        APP_NAME: ${{ inputs.app-name }}
+        SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
+        SLACK_CHANNEL: ${{ inputs.slack-channel }}
+        SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
+        SLACK_TS: ${{ inputs.slack-ts }}
+        DISCORD_WEBHOOK: ${{ inputs.discord-webhook }}
+        DISCORD_MESSAGE_ID: ${{ inputs.discord-message-id }}
+        STATE_FILE: ${{ inputs.state-file }}
+        COLOR_DEPLOYING: ${{ inputs.color-deploying }}
+        COLOR_RELEASED: ${{ inputs.color-released }}
+        COLOR_FAILED: ${{ inputs.color-failed }}
+        LABEL_DEPLOYING: ${{ inputs.status-label-deploying }}
+        LABEL_RELEASED: ${{ inputs.status-label-released }}
+        LABEL_FAILED: ${{ inputs.status-label-failed }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}

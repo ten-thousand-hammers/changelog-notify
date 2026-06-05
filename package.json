@@ -1,0 +1,10 @@
+{
+  "name": "changelog-notify",
+  "version": "1.0.0",
+  "description": "Post release/deploy notifications to Slack and/or Discord with a deploy lifecycle",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

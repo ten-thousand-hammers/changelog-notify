@@ -1,0 +1,60 @@
+# Example: a full deploy lifecycle notification (deploying -> released / failed)
+# wrapped around a Fly.io deploy, posting to both Slack and Discord.
+name: Fly Deploy
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency: deploy-group
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Notify deploying
+        id: notify
+        uses: ten-thousand-hammers/changelog-notify@v1
+        with:
+          status: deploying
+          version: ${{ github.event.release.tag_name }}
+          changes: ${{ github.event.release.body }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          fail-on-error: false
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Notify released
+        if: success()
+        uses: ten-thousand-hammers/changelog-notify@v1
+        with:
+          status: released
+          version: ${{ github.event.release.tag_name }}
+          changes: ${{ github.event.release.body }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-ts: ${{ steps.notify.outputs.slack-ts }}
+          discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          discord-message-id: ${{ steps.notify.outputs.discord-message-id }}
+          fail-on-error: false
+
+      - name: Notify failed
+        if: failure()
+        uses: ten-thousand-hammers/changelog-notify@v1
+        with:
+          status: failed
+          version: ${{ github.event.release.tag_name }}
+          changes: ${{ github.event.release.body }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-ts: ${{ steps.notify.outputs.slack-ts }}
+          discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          discord-message-id: ${{ steps.notify.outputs.discord-message-id }}
+          fail-on-error: false
